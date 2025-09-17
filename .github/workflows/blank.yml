@@ -1,0 +1,14 @@
+name: Slack Test Ping
+
+on:
+  workflow_dispatch:   # lets you trigger manually
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Always send test Slack message
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"✅ Test message from GitHub Actions to Slack!"}' \
+            ${{ secrets.SLACK_WEBHOOK }}
