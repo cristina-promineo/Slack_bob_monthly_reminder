@@ -2,8 +2,8 @@ name: Slack Business Day Ping
 
 on:
   schedule:
-    - cron: "0 9 28-31 * *"  # runs at 09:00 UTC on days 28-31
-  workflow_dispatch:         # lets you trigger manually for testing
+    - cron: "0 9 28-31 * *"  # Runs at 09:00 UTC on days 28–31
+  workflow_dispatch:         # Allow manual trigger for testing
 
 jobs:
   notify:
@@ -12,14 +12,21 @@ jobs:
       - name: Check if today is last business day
         run: |
           today=$(date +%Y-%m-%d)
-          dow=$(date +%u) # 1=Mon, ..., 7=Sun
+          dow=$(date +%u)  # 1=Mon ... 7=Sun
+          dom=$(date +%d)  # day of month
           tomorrow=$(date -d "$today +1 day" +%d)
+          last_day=$(date -d "$today +1 month -$(date +%d) days" +%d)
 
-          # Default: do not notify
+          # Default: don't notify
           echo "RUN_NOTIFY=false" >> $GITHUB_ENV
 
-          # If tomorrow is the 1st AND today is Mon–Fri → last business day
+          # Case 1: Today is Mon–Fri AND tomorrow is the 1st → last weekday
           if [ "$tomorrow" = "01" ] && [ "$dow" -lt 6 ]; then
+            echo "RUN_NOTIFY=true" >> $GITHUB_ENV
+          fi
+
+          # Case 2: Today is Friday AND (last day is Sat or Sun) → ping Friday
+          if [ "$dow" -eq 5 ] && [ "$dom" -ge $((last_day-1)) ]; then
             echo "RUN_NOTIFY=true" >> $GITHUB_ENV
           fi
 
@@ -27,5 +34,5 @@ jobs:
         if: env.RUN_NOTIFY == 'true'
         run: |
           curl -X POST -H 'Content-type: application/json' \
-            --data '{"text":"Hello there! Update your timesheet on Bob 🚀 https://app.hibob.com/attendance/my-attendance "}' \
+           --data '{"text":"Hello there! Update your timesheet on Bob 🚀 https://app.hibob.com/attendance/my-attendance "}' \
             ${{ secrets.SLACK_WEBHOOK }}
