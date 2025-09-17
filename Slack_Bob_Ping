@@ -1,0 +1,29 @@
+name: Slack Business Day Ping
+
+on:
+  schedule:
+    - cron: "0 9 28-31 * *"  # Runs at 09:00 UTC on days 28-31
+  workflow_dispatch:         # Allows manual testing
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if today is last business day
+        run: |
+          today=$(date +%Y-%m-%d)
+          dow=$(date +%u) # 1=Mon ... 7=Sun
+          tomorrow=$(date -d "$today +1 day" +%d)
+          
+          if [ "$tomorrow" = "01" ] && [ "$dow" -lt 6 ]; then
+            echo "RUN_NOTIFY=true" >> $GITHUB_ENV
+          else
+            echo "RUN_NOTIFY=false" >> $GITHUB_ENV
+          fi
+
+      - name: Send Slack message
+        if: env.RUN_NOTIFY == 'true'
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"Hello there! Update your timesheet on Bob 🚀 https://app.hibob.com/attendance/my-attendance "}' \
+            ${{ secrets.SLACK_WEBHOOK }}
