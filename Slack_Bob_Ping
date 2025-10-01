@@ -2,8 +2,8 @@ name: Slack Business Day Ping
 
 on:
   schedule:
-    - cron: "0 9 28-31 * *"  # Runs at 09:00 UTC on days 28–31
-  workflow_dispatch:         # Allow manual trigger for testing
+    - cron: "0 9 * * *"   # Runs every day at 09:00 UTC
+  workflow_dispatch:       # Allow manual run for testing
 
 jobs:
   notify:
@@ -12,21 +12,27 @@ jobs:
       - name: Check if today is last business day
         run: |
           today=$(date +%Y-%m-%d)
-          dow=$(date +%u)  # 1=Mon ... 7=Sun
-          dom=$(date +%d)  # day of month
-          tomorrow=$(date -d "$today +1 day" +%d)
-          last_day=$(date -d "$today +1 month -$(date +%d) days" +%d)
+          dow=$(date +%u)    # 1=Mon ... 7=Sun
+          dom=$(date +%d)    # day of month
+          last_day=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +%d)
 
-          # Default: don't notify
+          echo "DEBUG: today=$today dow=$dow dom=$dom last_day=$last_day"
+
+          # Default: do not notify
           echo "RUN_NOTIFY=false" >> $GITHUB_ENV
 
-          # Case 1: Today is Mon–Fri AND tomorrow is the 1st → last weekday
-          if [ "$tomorrow" = "01" ] && [ "$dow" -lt 6 ]; then
+          # Case 1: Last day is Mon–Fri → ping exactly on last day
+          if [ "$dom" = "$last_day" ] && [ "$dow" -lt 6 ]; then
             echo "RUN_NOTIFY=true" >> $GITHUB_ENV
           fi
 
-          # Case 2: Today is Friday AND (last day is Sat or Sun) → ping Friday
-          if [ "$dow" -eq 5 ] && [ "$dom" -ge $((last_day-1)) ]; then
+          # Case 2: Last day is Sat → ping on Friday (last_day-1)
+          if [ "$dow" -eq 5 ] && [ "$dom" -eq $((last_day-1)) ]; then
+            echo "RUN_NOTIFY=true" >> $GITHUB_ENV
+          fi
+
+          # Case 3: Last day is Sun → ping on Friday (last_day-2)
+          if [ "$dow" -eq 5 ] && [ "$dom" -eq $((last_day-2)) ] && [ "$(date -d "$today +2 days" +%d)" = "$last_day" ]; then
             echo "RUN_NOTIFY=true" >> $GITHUB_ENV
           fi
 
